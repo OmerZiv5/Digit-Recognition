@@ -1,0 +1,111 @@
+import random
+import numpy as np
+
+
+def sigmoid(x):
+    res = 1.0 / (1.0 + np.exp(-x))
+    return res
+
+
+def sigmoid_prime(x):
+    # The derivative of sigmoid
+    return sigmoid(x) * (1 - sigmoid(x))
+
+
+def cost_dist(output_activations, ans):
+    # calculates the "distance" between the output of the neural network and the answer which the actual number
+    # that was drawn
+
+    return output_activations - ans
+
+
+class Network:
+    def __init__(self, sizes):
+        # If sizes is [5, 3, 1] it means the neural network has 3 layers with 5 neurons in the first layer,
+        # 3 in the second and so on.
+
+        self.num_layers = len(sizes)
+        self.sizes = sizes
+        self.biases = [np.random.randn(z, 1) for z in sizes[1:]]
+        self.weights = [np.random.randn(y, x) for x, y in zip(sizes[:-1], sizes[1:])]
+
+    def feed_forward(self, a):
+        # return the output of the network if 'a' is the input.
+        for b, w in zip(self.biases, self.weights):
+            a = a.reshape(-1, 1)
+            a = sigmoid(np.dot(w, a) + b)
+        return a
+
+    def grad_calc(self, a, answer):
+        # Initializing the lists that will contain the derivatives by b and w.
+        nabla_w = [np.zeros(w.shape) for w in self.weights]
+        nabla_b = [np.zeros(b.shape) for b in self.biases]
+
+        # a is the activation of the first layer and activations is a matrix that contains all the activations
+        # of all the layers in the neural network.
+        activation = a
+        activation = activation.reshape(-1, 1)
+        activations = [a]
+        # Saving the expression before the sigmoid function in a list called ms (m stands for mid) because it'll be
+        # needed later
+        ms = []
+        # This for loop creates a list called activations that contains the neurons activations layer by layer
+        # in addition it creates a list called ms that contains the activations of each layer without being squished
+        # by the sigmoid function.
+        for w, b in zip(self.weights, self.biases):
+            m = np.dot(w, activation) + b
+            ms.append(m)
+            activation = sigmoid(m)
+            activation = activation.reshape(-1, 1)
+            activations.append(activation)
+        activations[0] = activations[0].reshape(-1, 1)
+        # Taking into consideration the cost of the training example.
+        y = cost_dist(activations[-1], answer) * sigmoid_prime(ms[-1])
+        nabla_b[-1] = y
+        nabla_w[-1] = np.dot(y, np.transpose(activations[-2]))
+
+        # From the second to last layer onwards you don't need to take the cost into consideration.
+        for l in range(2, self.num_layers):
+            m = ms[-l]
+            y = np.dot(np.transpose(self.weights[-l + 1]), y) * sigmoid_prime(m)
+            nabla_b[-l] = y
+            nabla_w[-l] = np.dot(y, np.transpose(activations[-l - 1]))
+
+        return nabla_w, nabla_b
+
+    def adjust_net(self, batch, rate):
+        # rate refers to the learning rate of the network, it has to be relative to the btch size we're using.
+        # ideally (idk whether I'll add that or not) the rate will be smaller the closer we are to a min point of the
+        # cost function to prevent overshooting.
+        nabla_b = [np.zeros(b.shape) for b in self.biases]
+        nabla_w = [np.zeros(w.shape) for w in self.weights]
+
+        # (x, y) is a tuple that contains an example of a digit (a matrix) and the answer (a vector).
+        for x, y in batch:
+            delta_nabla_w, delta_nabla_b = self.grad_calc(x, y)
+            nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
+            nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
+            self.weights = [w - (rate/len(batch))*nw for w, nw in zip(self.weights, nabla_w)]
+            self.biases = [b - (rate/len(batch))*nb for b, nb in zip(self.biases, nabla_b)]
+
+    def evaluate(self, test_data):
+        # remember test data is a list of tuples: (image, answer)
+        print("Evaluating network performance...")
+        n = len(test_data)
+        example_res = self.feed_forward(test_data[0][0])
+        test_results = [(np.argmax(self.feed_forward(res)), np.argmax(ans)) for res, ans in test_data]
+        test_score = sum(int(x == y) for x, y in test_results)
+        return test_score
+
+    def train_network(self, training_data, batch_size, sessions_num, rate):
+        print("Training network...")
+        training_data = list(training_data)
+        n = len(training_data)
+
+        for j in range(sessions_num):
+            random.shuffle(training_data)
+            batches = [training_data[k:k+batch_size] for k in range(0, n, batch_size)]
+            for batch in batches:
+                self.adjust_net(batch, rate)
+        print("Training complete.")
+
