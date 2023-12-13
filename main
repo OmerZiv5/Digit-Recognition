@@ -1,0 +1,24 @@
+import getinfo
+import network
+
+
+def main():
+    # get the data, organize it and divide it into training and testing data.
+    images, answers = getinfo.get_data()
+    org_data = getinfo.organize_data(images, answers)
+    n = len(org_data)
+    n_test = 1000
+    n_training = n - n_test
+    training_data = org_data[:n_training]
+    test_data = org_data[n_training:]
+    # create the network
+    net = network.Network([784, 30, 10])
+    # train the network
+    net.train_network(training_data, 10, 30, 3.0)
+    # test the network
+    score = net.evaluate(test_data)
+    print(f"{score}/{n_test} correct answers")
+
+
+if __name__ == '__main__':
+    main()
