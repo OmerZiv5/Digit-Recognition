@@ -1,0 +1,29 @@
+import numpy as np
+from sklearn.datasets import fetch_openml
+
+
+def get_data():
+    print("Loading information...")
+    mnist = fetch_openml('mnist_784', as_frame=False)
+    images = mnist.data
+    answers = mnist.target
+
+    return images, answers
+
+
+def organize_data(images, answers):
+    new_data = []
+    for i in range(len(images)):
+        for j in range(len(images[i])):
+            images[i][j] = round(images[i][j] / 255.0, 2)
+        new_data.append((images[i], vectorize_answer(answers[i])))
+    print("Loading complete.")
+    return new_data
+
+
+def vectorize_answer(answer):
+    ind = int(answer)
+    answer_vec = np.zeros((10, 1))
+    answer_vec[ind] = 1.0
+    return answer_vec
+
